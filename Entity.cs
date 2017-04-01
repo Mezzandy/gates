@@ -7,7 +7,10 @@ public class Entity : MonoBehaviour {
 	public TileMap MainTileMap;
 
 	public float Speed;
-	public float JumpHeight;
+	public float CurrentSpeed;
+	public float MaxSpeed;
+	public float Acceleration;
+	public float JumpHeight;		//Need to add acceleration to jump, avoid this and use another value
 	public bool Grounded;
 	public bool Jumped;
 	public bool Falling;
@@ -16,41 +19,114 @@ public class Entity : MonoBehaviour {
 	public Vector2 Direction;
 	public Vector2 CollisionDirection;
 	public Vector2 BoxScale;
-
 	public int PlayerTileX;
 	public int PlayerTileY;
-
 	public int NextTileX;
 	public int NextTileY;
 
 	public float Gravity;
 
+	public GameObject DebugQuad;
+
 	// Use this for initialization
 	void Start () {
 
-		UpdateBox();
+		UpdateCurrentTile();
 	}
 
 	// Update is called once per frame
 	void Update () {
 
-		GetInput ();
+		//GetInput ();
+
+		//Find Current Tile/Position
+		UpdateCurrentTile();
+
+		//Get Input
+		GetInput();
+
+		//Check For Collision
+		CheckForCollision();
+
+		//Update Position
+		UpdatePosition();
 	}
 
-	public void UpdateBox(){
-		Vector3 p = gameObject.transform.position;
+	public void UpdatePosition(){
+
+		Vector2 NewPlayerPosition = gameObject.transform.position;
+
+		if (CollisionDirection.x == 0) {
+			CurrentSpeed = GetCurrentSpeed ();
+			NewPlayerPosition.x += CurrentSpeed * Time.deltaTime;
+		}
+
+		if (CollisionDirection.y == 0) {
+			if (Jumped == true) {
+				if (Velocity.y <= 0.0f) {
+					Jumped = false;
+					Falling = true;
+				} else {
+					float newVelocity = Velocity.y + (Gravity * Time.deltaTime);
+					Velocity.y = newVelocity;
+					NewPlayerPosition.y += Velocity.y * Time.deltaTime;
+				}
+			} 
+
+			if (Grounded == false && Jumped == false) {		//Falling
+				Falling = true;
+				Velocity.y += Gravity * Time.deltaTime;
+				NewPlayerPosition.y += Velocity.y * Time.deltaTime;
+
+//				if ((NewPlayerPosition.y - BoxScale.y) < PlayerTileY) {
+//					NewPlayerPosition.y = BoxScale.y + PlayerTileY;
+//					Grounded = true;
+//				}
+			}
+		} 
+		else if (CollisionDirection.y == -1) {
+			Grounded = true;
+			Falling = false;
+			Jumped = false;
+			if ((NewPlayerPosition.y - BoxScale.y) < PlayerTileY) {
+				NewPlayerPosition.y = BoxScale.y + PlayerTileY;
+				//Grounded = true;
+			}
+		}
 	
-		PlayerTileX = (int)p.x;
-		PlayerTileY = (int)p.y;
+		gameObject.transform.position = NewPlayerPosition;
+
 	}
 
-	public bool Collided(){
-		bool HasCollided = false;
+	public void GetInput(){
 
+		//Player Control
+		Velocity.x = Input.GetAxis("Horizontal");
+
+		if(Jumped == false && Grounded == true){
+			if(Input.GetKeyDown(KeyCode.Space)){
+				Jumped = true;
+				Grounded = false;
+				Velocity.y = JumpHeight;
+			}
+		}
+
+		//Camera Control
+		if (Input.GetKey (KeyCode.LeftBracket)) {
+			float s = SceneCamera.GetComponent<Camera> ().orthographicSize;
+			s -= 1.0f * Time.deltaTime;
+			SceneCamera.GetComponent<Camera> ().orthographicSize = s;
+		}
+
+		if (Input.GetKey (KeyCode.RightBracket)) {
+			float s = SceneCamera.GetComponent<Camera> ().orthographicSize;
+			s += 1.0f * Time.deltaTime;
+			SceneCamera.GetComponent<Camera> ().orthographicSize = s;
+		}
+	}
+
+	public void CheckForCollision(){
 		Vector3 PlayerPosition = gameObject.transform.position;
-
-		int CurrentTileX = (int)(PlayerPosition.x);
-		int CurrentTileY = (int)(PlayerPosition.y);
 
 		//Find Desired Direction 
 		if (Velocity.x > 0) {
@@ -72,187 +148,115 @@ public class Entity : MonoBehaviour {
 		else {
 			Direction.y = -1;
 		}
-			
-		Vector3 NewPlayerPosition = gameObject.transform.position;
-		NewPlayerPosition.x += Velocity.x * Speed * Time.deltaTime;
 
-		NextTileX = (int)(CurrentTileX + Direction.x);
+		//Get potential new speed
+		float NewSpeed = GetCurrentSpeed();
+
+		//Check X Axis
+		//Move to potential position
+		PlayerPosition.x += NewSpeed * Time.deltaTime;
+
+		//Get Potential Bounding Box
+		NextTileX = PlayerTileX + (int)(Direction.x);
 
 		//X Axis
-		if (MainTileMap.CollisionMap [CurrentTileY * 20 + NextTileX] == 1) {
+		if (MainTileMap.CollisionMap [PlayerTileY * 20 + NextTileX] == 1) {
+			//Next Tile
 			float cRight = NextTileX + 1;
 			float cLeft = NextTileX;
-			float cTop = CurrentTileY + 1;
-			float cBottom = CurrentTileY;
+			float cTop =  PlayerTileY+ 1;
+			float cBottom = PlayerTileY;
 
-			float pRight = NewPlayerPosition.x + BoxScale.x;
-			float pLeft = NewPlayerPosition.x - BoxScale.x;
-			float pTop = NewPlayerPosition.y + BoxScale.y;
-			float pBottom = NewPlayerPosition.y - BoxScale.y;
-
-			if (pLeft > cRight || pRight < cLeft || pTop < cBottom || pBottom > cTop) {
-				HasCollided = false;
-			} else {
-				HasCollided = true;
-			}
-		}
-
-		NextTileY = (int)(CurrentTileY + Direction.y);
-
-		float newVelocity = Velocity.y - (Gravity * Time.deltaTime);
-		NewPlayerPosition.y += Velocity.y * Time.deltaTime;
-
-		//Y Axis
-		if (MainTileMap.CollisionMap [NextTileY * 20 + CurrentTileX] == 1) {
-			float cRight = CurrentTileX + 1;
-			float cLeft = CurrentTileX;
-			float cTop = NextTileY + 1;
-			float cBottom = NextTileY;
-
-			float pRight = NewPlayerPosition.x + BoxScale.x;
-			float pLeft = NewPlayerPosition.x - BoxScale.x;
-			float pTop = NewPlayerPosition.y + BoxScale.y;
-			float pBottom = NewPlayerPosition.y - BoxScale.y;
-
-			if (pLeft > cRight || pRight < cLeft || pTop < cBottom || pBottom > cTop) {
-				HasCollided = false;
-			} else {
-				HasCollided = true;
-			}
-		}	
-
-		return HasCollided;
-	}
-
-	public void CheckIfGrounded(){
-		//Check for ground
-		Vector3 PlayerPosition = gameObject.transform.position;
-
-		int CurrentTileX = (int)(PlayerPosition.x);
-		int CurrentTileY = (int)(PlayerPosition.y);
-
-		if (MainTileMap.CollisionMap [(CurrentTileY - 1) * 20 + CurrentTileX] == 1) {
-			float cRight = CurrentTileX + 1;
-			float cLeft = CurrentTileX;
-			float cTop = (CurrentTileY);
-			float cBottom = (CurrentTileY - 1);
-
+			//Player
 			float pRight = PlayerPosition.x + BoxScale.x;
 			float pLeft = PlayerPosition.x - BoxScale.x;
 			float pTop = PlayerPosition.y + BoxScale.y;
 			float pBottom = PlayerPosition.y - BoxScale.y;
 
-			if (pLeft > cRight || pRight < cLeft || pTop < cBottom || pBottom > cTop) {
-				Grounded = false;
-			} else {
-				Grounded = true;
-				Velocity.y = 0.0f;
-				Falling = false;
-				if ((PlayerPosition.y-BoxScale.y) < (float)CurrentTileY) {
-					PlayerPosition.y = BoxScale.y + (float)CurrentTileY;
-				}
+			if (pLeft < cRight) {
+				CollisionDirection.x = -1;
+			} 
+			else if (pRight > cLeft) {
+				CollisionDirection.x = 1;
+			} 
+			else {
+				CollisionDirection.x = 0;
 			}
-		} 
-		else {
-			Grounded = false;
 		}
+
+		//Check Y Axis
+		//Move to potential position
+		float newVelocity = Velocity.y - (Gravity * Time.deltaTime);
+		PlayerPosition.y += Velocity.y * Time.deltaTime;
+
+		NextTileY = PlayerTileY + (int)(Direction.y);
+
+		//Y Axis
+		if (MainTileMap.CollisionMap [NextTileY * 20 + PlayerTileX] == 1) {
+			//Next Tile
+			float cRight = PlayerTileX + 1;
+			float cLeft = PlayerTileX;
+			float cTop = NextTileY + 1;
+			float cBottom = NextTileY;
+
+			//Player
+			float pRight = PlayerPosition.x + BoxScale.x;
+			float pLeft = PlayerPosition.x - BoxScale.x;
+			float pTop = PlayerPosition.y + BoxScale.y;
+			float pBottom = PlayerPosition.y - BoxScale.y;
+
+			if (pBottom < cTop) {
+				CollisionDirection.y = -1;
+				Grounded = true;
+				Falling = false;
+				Jumped = false;
+				Velocity.y = 0.0f;
+			} 
+			else if (pTop > cBottom) {
+				CollisionDirection.y = 1;
+				Falling = true;
+				Jumped = false;
+				Grounded = false;
+			} 
+			else {
+				CollisionDirection.y = 0;
+			}
+		}	
+
+		Vector3 dPos = DebugQuad.transform.position;
+		dPos.x = NextTileX + 0.5f;
+		dPos.y = NextTileY + 0.5f;
+		DebugQuad.transform.position = dPos;
 	}
 
-	public void GetInput(){
+	public float GetCurrentSpeed(){
+		float NewSpeed = 0.0f;
 
-		Velocity.x = Input.GetAxis("Horizontal");
+		NewSpeed = Velocity.x * Acceleration * MaxSpeed + (1.0f - Acceleration) * (CurrentSpeed);
 
-		if (Jumped == false && Grounded == true) {
-			if (Input.GetKeyDown (KeyCode.Space)) {
-				Jumped = true;
-				Velocity.y = JumpHeight;
-				Grounded = false;
+		if (NewSpeed > 0.0f) {
+			if (NewSpeed > MaxSpeed) {
+				NewSpeed = MaxSpeed;
 			}
-		} 
-			
-		if (Jumped == true) {
-			if (Velocity.y <= 0.0f) {
-				Jumped = false;
-				Falling = true;
-			}
-			if (Collided () == true) {
-				Jumped = false;
-				Falling = true;
-			}
-		} 
-
-		if (Jumped == false) {
-			CheckIfGrounded ();
 		}
 
-		//If no collision, move character
-		if (Collided () == false) {
-			Vector3 position = gameObject.transform.position;
-
-			//position.x += h * Speed * Time.deltaTime;
-			position.x += Velocity.x * Speed * Time.deltaTime;
-
-			if (Grounded == false && Jumped == false) {		//Falling
-				//position.y += Gravity * Time.deltaTime;
-				Falling = true;
-				Velocity.y += Gravity * Time.deltaTime;
-				position.y += Velocity.y * Time.deltaTime;
+		if (NewSpeed < 0.0f) {
+			if (-NewSpeed < -MaxSpeed) {
+				NewSpeed = -MaxSpeed;
 			}
-
-			if (Jumped == true) {
-				float newVelocity = Velocity.y + (Gravity * Time.deltaTime);
-				Velocity.y = newVelocity;
-				position.y += Velocity.y * Time.deltaTime;
-			}
-
-			Vector3 camerapos = SceneCamera.transform.position;
-			camerapos.x = position.x;
-			SceneCamera.transform.position = camerapos;
-
-			gameObject.transform.position = position;
-		
-			UpdateBox ();
-		} 
-		else {
-			Vector3 position = gameObject.transform.position;
-
-			if (Grounded == false && Jumped == false) {		//Falling
-				//float newVelocity = Velocity.y + (Gravity * Time.deltaTime);
-				Falling = true;
-				Velocity.y += Gravity * Time.deltaTime;
-				position.y += Velocity.y * Time.deltaTime;
-				//position.y += Gravity * Time.deltaTime;
-				if ((position.y-BoxScale.y) < (float)PlayerTileY) {
-					position.y = (float)PlayerTileY + BoxScale.y;
-				}
-			}
-
-			if (Jumped == true) {
-				float newVelocity = Velocity.y + (Gravity * Time.deltaTime);
-				Velocity.y = newVelocity;
-				position.y += Velocity.y * Time.deltaTime;
-			}
-				
-			Vector3 camerapos = SceneCamera.transform.position;
-			camerapos.x = position.x;
-			SceneCamera.transform.position = camerapos;
-
-			gameObject.transform.position = position;
-
-			UpdateBox ();
-		}
-			
-		//Camera Control
-		if (Input.GetKey (KeyCode.LeftBracket)) {
-			float s = SceneCamera.GetComponent<Camera> ().orthographicSize;
-			s -= 1.0f * Time.deltaTime;
-			SceneCamera.GetComponent<Camera> ().orthographicSize = s;
 		}
 
-		if (Input.GetKey (KeyCode.RightBracket)) {
-			float s = SceneCamera.GetComponent<Camera> ().orthographicSize;
-			s += 1.0f * Time.deltaTime;
-			SceneCamera.GetComponent<Camera> ().orthographicSize = s;
+		if (NewSpeed < 0.1f && NewSpeed > -0.1f) {
+			NewSpeed = 0.0f;
 		}
+
+		return NewSpeed;
+	}
+
+	public void UpdateCurrentTile(){
+		Vector3 p = gameObject.transform.position;
+
+		PlayerTileX = (int)p.x;
+		PlayerTileY = (int)p.y;
 	}
 }
