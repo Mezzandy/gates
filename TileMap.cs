@@ -47,8 +47,8 @@ public class TileMap : MonoBehaviour {
 			for (int y = 0; y < Height; y++) {
 
 				int s = Map [y * Width + x];
-				 b = Mathf.RoundToInt(s/16.0f);		//y
-				 a = s - (b * 16);				//x
+				b = Mathf.RoundToInt(s/16.0f);		//y
+				a = s - (b * 16);				//x
 
 				//int collision = Random.Range (0, 10);
 				//if (collision < 5) {
@@ -61,22 +61,22 @@ public class TileMap : MonoBehaviour {
 				//	b = 15;
 				//}
 
-					//Front Face
-					NewVertices.Add(new Vector3(x, y, 0));
-					NewVertices.Add(new Vector3(x+1, y, 0));
-					NewVertices.Add(new Vector3(x, y+1, 0));
-					NewVertices.Add(new Vector3(x+1, y+1, 0));
-					Index = NewVertices.Count - 4;		
-					NewTriangles.Add(Index);
-					NewTriangles.Add(Index+2);
-					NewTriangles.Add(Index+1);
-					NewTriangles.Add(Index+2);
-					NewTriangles.Add(Index+3);
-					NewTriangles.Add(Index+1);
-					NewUVs.Add(new Vector2(a*ox, b*oy)); 
-					NewUVs.Add(new Vector2(a*ox+ox, b*oy)); 
-					NewUVs.Add(new Vector2(a*ox, b*oy+oy)); 
-					NewUVs.Add(new Vector2(a*ox+ox, b*oy+oy)); 
+				//Front Face
+				NewVertices.Add(new Vector3(x, y, 0));
+				NewVertices.Add(new Vector3(x+1, y, 0));
+				NewVertices.Add(new Vector3(x, y+1, 0));
+				NewVertices.Add(new Vector3(x+1, y+1, 0));
+				Index = NewVertices.Count - 4;		
+				NewTriangles.Add(Index);
+				NewTriangles.Add(Index+2);
+				NewTriangles.Add(Index+1);
+				NewTriangles.Add(Index+2);
+				NewTriangles.Add(Index+3);
+				NewTriangles.Add(Index+1);
+				NewUVs.Add(new Vector2(a*ox, b*oy)); 
+				NewUVs.Add(new Vector2(a*ox+ox, b*oy)); 
+				NewUVs.Add(new Vector2(a*ox, b*oy+oy)); 
+				NewUVs.Add(new Vector2(a*ox+ox, b*oy+oy)); 
 
 			}
 		}
@@ -85,8 +85,6 @@ public class TileMap : MonoBehaviour {
 		newMesh.triangles = NewTriangles.ToArray ();
 		newMesh.uv = NewUVs.ToArray ();
 		newMesh.RecalculateNormals();
-		newMesh.Optimize();
-
 
 		gameObject.GetComponent<MeshFilter>().sharedMesh = newMesh;
 		//gameObject.AddComponent<EdgeCollider2D> ().points = ColliderPoints.ToArray ();
